@@ -72,16 +72,17 @@ body{
 .c-meta-i span{color:var(--text);font-family:var(--mono);font-weight:600}
 .spark-wrap{margin-top:9px;height:42px}
 .spark-wrap canvas{width:100%!important;height:42px!important;display:block}
-.del-btn{position:absolute;top:10px;right:10px;background:rgba(255,77,109,.12);border:none;color:var(--red);width:30px;height:30px;border-radius:50%;font-size:15px;display:flex;align-items:center;justify-content:center;z-index:5}
-
-/* WATCHLIST CARD - draggable */
-.wl-card{cursor:grab;touch-action:pan-y;transition:transform .2s ease, opacity .2s ease, box-shadow .2s ease}
-.wl-card.dragging{opacity:.5;cursor:grabbing;box-shadow:0 10px 30px rgba(0,0,0,.5);transform:scale(1.02);z-index:10;position:relative}
+/* WATCHLIST CARD - swipe to delete + drag to reorder */
+.wl-wrap{position:relative;margin-bottom:9px;border-radius:var(--r);overflow:hidden}
+.wl-bg{position:absolute;inset:0;background:linear-gradient(90deg,var(--red) 0%,#c0392b 100%);display:flex;align-items:center;justify-content:flex-end;padding:0 22px;border-radius:var(--r);pointer-events:none}
+.wl-bg-left{background:linear-gradient(90deg,#c0392b 0%,var(--red) 100%);justify-content:flex-start}
+.wl-bg-text{color:#fff;font-weight:800;font-size:14px;letter-spacing:.5px;display:flex;align-items:center;gap:6px}
+.wl-card{cursor:grab;touch-action:pan-y;transition:transform .25s cubic-bezier(.22,1,.36,1), opacity .2s ease, box-shadow .2s ease;background:var(--surface);position:relative;margin-bottom:0;padding-left:32px;will-change:transform}
+.wl-card.swiping{transition:none}
+.wl-card.dragging{opacity:.5;cursor:grabbing;box-shadow:0 10px 30px rgba(0,0,0,.5);transform:scale(1.02);z-index:10}
 .wl-card.drag-over{border-color:var(--accent);border-width:2px}
-.drag-handle{position:absolute;top:50%;left:8px;transform:translateY(-50%);color:var(--muted);opacity:.5;font-size:18px;line-height:.6;letter-spacing:-2px;cursor:grab;padding:8px 4px;user-select:none;-webkit-user-select:none}
-.wl-card{padding-left:32px}
-.wl-card .del-btn{right:10px}
-.wl-edit-hint{font-size:11px;color:var(--muted);text-align:center;padding:8px 0 14px;font-style:italic}
+.drag-handle{position:absolute;top:50%;left:8px;transform:translateY(-50%);color:var(--muted);opacity:.4;font-size:18px;line-height:.6;letter-spacing:-2px;padding:8px 4px;user-select:none;-webkit-user-select:none;pointer-events:none}
+.wl-edit-hint{font-size:11px;color:var(--muted);text-align:center;padding:8px 0 14px;font-style:italic;line-height:1.5}
 
 /* VIX */
 .vix-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:9px}
@@ -511,43 +512,45 @@ function buildCard(symbol, fallbackName, deletable=false) {
   const q = priceCache[symbol];
   const cardCls = deletable ? 'card wl-card' : 'card';
   const handle = deletable ? `<div class="drag-handle" aria-hidden="true">⋮⋮</div>` : '';
+  let inner;
   if (!q || q.c == null) {
-    return `<div class="${cardCls}" id="card-${symbol}" data-sym="${symbol}" ${deletable?'draggable="true"':''}>
+    inner = `<div class="${cardCls}" id="card-${symbol}" data-sym="${symbol}" ${deletable?'draggable="true"':''}>
       ${handle}
-      ${deletable?`<button class="del-btn" data-sym="${symbol}" type="button">✕</button>`:''}
       <div class="card-top">
         <div><div class="c-sym">${symbol}</div><div class="c-name">${fallbackName||symbol}</div></div>
         <div><div class="c-price" style="color:var(--muted)">—</div><div class="c-chg" style="color:var(--muted)">se încarcă...</div></div>
       </div>
     </div>`;
-  }
-  const pos = q.dp >= 0, cls = pos?'g':'r', arr = pos?'▲':'▼';
-  const pct = q.dp!=null ? (pos?'+':'')+q.dp.toFixed(2)+'%' : '—';
-  const chg = q.d!=null  ? (pos?'+':'')+q.d.toFixed(2) : '—';
-  const flash = (q.prevC!=null && q.prevC!==q.c) ? (q.c>q.prevC?'fg':'fr') : '';
-  return `
-  <div class="${cardCls} ${flash}" id="card-${symbol}" data-sym="${symbol}" ${deletable?'draggable="true"':''}>
-    ${handle}
-    ${deletable?`<button class="del-btn" data-sym="${symbol}" type="button">✕</button>`:''}
-    <div class="card-top">
-      <div><div class="c-sym">${symbol}</div><div class="c-name">${fallbackName||symbol}</div></div>
-      <div>
-        <div class="c-price ${cls}">$${q.c.toFixed(2)}</div>
-        <div class="c-chg ${cls}">${arr} ${chg} <span style="opacity:.7">(${pct})</span></div>
+  } else {
+    const pos = q.dp >= 0, cls = pos?'g':'r', arr = pos?'▲':'▼';
+    const pct = q.dp!=null ? (pos?'+':'')+q.dp.toFixed(2)+'%' : '—';
+    const chg = q.d!=null  ? (pos?'+':'')+q.d.toFixed(2) : '—';
+    const flash = (q.prevC!=null && q.prevC!==q.c) ? (q.c>q.prevC?'fg':'fr') : '';
+    inner = `
+    <div class="${cardCls} ${flash}" id="card-${symbol}" data-sym="${symbol}" ${deletable?'draggable="true"':''}>
+      ${handle}
+      <div class="card-top">
+        <div><div class="c-sym">${symbol}</div><div class="c-name">${fallbackName||symbol}</div></div>
+        <div>
+          <div class="c-price ${cls}">$${q.c.toFixed(2)}</div>
+          <div class="c-chg ${cls}">${arr} ${chg} <span style="opacity:.7">(${pct})</span></div>
+        </div>
       </div>
-    </div>
-    <div class="c-meta">
-      <div class="c-meta-i">H <span>${q.h?q.h.toFixed(2):'—'}</span></div>
-      <div class="c-meta-i">L <span>${q.l?q.l.toFixed(2):'—'}</span></div>
-      <div class="c-meta-i">Var <span class="${cls}">${chg}</span></div>
-    </div>
-  </div>`;
-}
-
-function wireDeleteBtns(container) {
-  container.querySelectorAll('.del-btn').forEach(btn => {
-    btn.addEventListener('click', e => { e.preventDefault(); removeTicker(btn.dataset.sym); });
-  });
+      <div class="c-meta">
+        <div class="c-meta-i">H <span>${q.h?q.h.toFixed(2):'—'}</span></div>
+        <div class="c-meta-i">L <span>${q.l?q.l.toFixed(2):'—'}</span></div>
+        <div class="c-meta-i">Var <span class="${cls}">${chg}</span></div>
+      </div>
+    </div>`;
+  }
+  // Wrap watchlist cards with swipe-to-delete background
+  if (deletable) {
+    return `<div class="wl-wrap" data-sym="${symbol}">
+      <div class="wl-bg"><div class="wl-bg-text">🗑 Șterge</div></div>
+      ${inner}
+    </div>`;
+  }
+  return inner;
 }
 
 function renderIndici() {
@@ -563,11 +566,94 @@ function renderWatchlist() {
     el.innerHTML = `<div class="empty"><p>Watchlist gol.<br>Adaugă simboluri mai sus<br>(ex: AAPL, NVDA, PLTR)</p></div>`;
     return;
   }
-  el.innerHTML = `<div class="wl-edit-hint">Apasă lung și trage pentru a reordona · ✕ pentru a șterge</div>` +
+  el.innerHTML = `<div class="wl-edit-hint">← Glisează pe card pentru a șterge<br>Apasă lung și trage pentru a reordona</div>` +
                  watchlist.map(s=>buildCard(s,'',true)).join('');
-  wireDeleteBtns(el);
+  wireSwipeDelete(el);
   wireDragDrop(el);
 }
+
+// ── SWIPE TO DELETE ─────────────────────────────────────
+function wireSwipeDelete(container) {
+  const SWIPE_THRESHOLD = 90;  // px to trigger delete
+  const MAX_OFFSET = 280;       // max swipe distance
+
+  container.querySelectorAll('.wl-card').forEach(card => {
+    const wrap = card.parentElement;
+    const bgRight = wrap.querySelector('.wl-bg');
+    let startX = 0, startY = 0, currentX = 0;
+    let swiping = false;
+    let direction = 0; // -1 left, 1 right
+    let cancelledByDrag = false;
+
+    card.addEventListener('touchstart', e => {
+      // Don't swipe if user is doing long-press drag
+      if (card.classList.contains('dragging')) return;
+      const t = e.touches[0];
+      startX = t.clientX;
+      startY = t.clientY;
+      currentX = 0;
+      swiping = false;
+      direction = 0;
+      cancelledByDrag = false;
+      card.classList.add('swiping');
+    }, { passive: true });
+
+    card.addEventListener('touchmove', e => {
+      if (card.classList.contains('dragging')) { cancelledByDrag = true; return; }
+      const t = e.touches[0];
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      // Determine direction on first significant move
+      if (!swiping) {
+        if (Math.abs(dx) < 8) return;
+        if (Math.abs(dy) > Math.abs(dx)) return; // vertical = scroll, not swipe
+        swiping = true;
+        direction = dx > 0 ? 1 : -1;
+        // Set background gradient direction
+        if (direction > 0) bgRight.classList.add('wl-bg-left');
+        else bgRight.classList.remove('wl-bg-left');
+      }
+      // Cap the movement
+      currentX = Math.max(-MAX_OFFSET, Math.min(MAX_OFFSET, dx));
+      card.style.transform = `translateX(${currentX}px)`;
+    }, { passive: true });
+
+    card.addEventListener('touchend', () => {
+      card.classList.remove('swiping');
+      if (!swiping || cancelledByDrag) {
+        card.style.transform = '';
+        return;
+      }
+      if (Math.abs(currentX) >= SWIPE_THRESHOLD) {
+        // Delete: animate off-screen then remove
+        const dir = currentX > 0 ? 1 : -1;
+        card.style.transition = 'transform .25s ease, opacity .2s ease';
+        card.style.transform = `translateX(${dir * window.innerWidth}px)`;
+        card.style.opacity = '0';
+        wrap.style.transition = 'height .25s ease, margin .25s ease, opacity .2s ease';
+        setTimeout(() => {
+          wrap.style.height = wrap.offsetHeight + 'px';
+          requestAnimationFrame(() => {
+            wrap.style.height = '0';
+            wrap.style.marginBottom = '0';
+            wrap.style.opacity = '0';
+          });
+        }, 200);
+        setTimeout(() => removeTicker(card.dataset.sym), 450);
+        if (navigator.vibrate) navigator.vibrate(30);
+      } else {
+        // Snap back
+        card.style.transform = '';
+      }
+    });
+
+    card.addEventListener('touchcancel', () => {
+      card.classList.remove('swiping');
+      card.style.transform = '';
+    });
+  });
+}
+
 
 // ── DRAG & DROP (touch + mouse) ─────────────────────────
 function wireDragDrop(container) {
