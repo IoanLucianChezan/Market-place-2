@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0f">
+<title>Market Pulse</title>
+<style>
+:root {
+  --bg:#0a0a0f; --surface:#13131e; --surface2:#1c1c2e; --border:#2e2e48;
+  --green:#00d4aa; --green-dim:rgba(0,212,170,0.1);
+  --red:#ff4d6d;   --red-dim:rgba(255,77,109,0.1);
+  --gold:#f0b429;  --text:#e8e8f2; --muted:#6868a0;
+  --accent:#7c6af7; --accent2:#a78bfa;
+  --mono:'SF Mono','Fira Code','Courier New',monospace;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  --r:14px; --rs:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  background:var(--bg);color:var(--text);font-family:var(--sans);
+  min-height:100dvh;padding-bottom:calc(72px + env(safe-area-inset-bottom));
+  -webkit-font-smoothing:antialiased;
+}
+
+/* HEADER */
+.header{
+  position:sticky;top:0;z-index:100;
+  background:rgba(10,10,15,0.93);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--border);padding:12px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.logo{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:800;letter-spacing:-.4px}
+.logo-dot{width:8px;height:8px;background:var(--green);border-radius:50%;animation:pulse-dot 2s ease-in-out infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1);box-shadow:0 0 0 0 rgba(0,212,170,.5)}50%{opacity:.85;transform:scale(1.25);box-shadow:0 0 0 6px rgba(0,212,170,0)}}
+.hdr-right{display:flex;align-items:center;gap:8px}
+.mkt-badge{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:3px 9px;border-radius:20px}
+.mkt-badge.open{background:var(--green-dim);color:var(--green)}
+.mkt-badge.closed{background:rgba(104,104,160,.15);color:var(--muted)}
+.mkt-badge.pre{background:rgba(240,180,41,.15);color:var(--gold)}
+.ref-btn{background:none;border:none;color:var(--muted);padding:6px;border-radius:8px;display:flex;align-items:center}
+.ref-btn.spin svg{animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* TICKER */
+.ticker-wrap{background:var(--surface);border-bottom:1px solid var(--border);height:32px;overflow:hidden;display:flex;align-items:center}
+.ticker-track{display:flex;animation:ticker 50s linear infinite;white-space:nowrap}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.t-item{display:inline-flex;align-items:center;gap:6px;padding:0 18px;font-size:11.5px;border-right:1px solid var(--border)}
+.t-sym{font-weight:700}.t-prc{font-family:var(--mono);color:var(--muted)}.t-chg{font-family:var(--mono);font-weight:600}
+
+/* SECTION */
+.sec{padding:14px 14px 4px}
+.sec-title{font-size:10.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:11px}
+
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:9px;position:relative;overflow:hidden}
+.card.fg{animation:flash-g .55s ease}
+.card.fr{animation:flash-r .55s ease}
+@keyframes flash-g{0%,100%{background:var(--surface)}30%{background:rgba(0,212,170,.07);border-color:rgba(0,212,170,.35)}}
+@keyframes flash-r{0%,100%{background:var(--surface)}30%{background:rgba(255,77,109,.07);border-color:rgba(255,77,109,.35)}}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px}
+.c-sym{font-size:15.5px;font-weight:800;letter-spacing:-.3px}
+.c-name{font-size:11px;color:var(--muted);margin-top:2px;font-weight:500}
+.c-price{font-family:var(--mono);font-size:20px;font-weight:700;letter-spacing:-.5px;line-height:1;text-align:right}
+.c-chg{font-family:var(--mono);font-size:12.5px;font-weight:600;margin-top:3px;display:flex;align-items:center;justify-content:flex-end;gap:3px}
+.c-meta{display:flex;justify-content:space-between;margin-top:6px}
+.c-meta-i{font-size:10.5px;color:var(--muted)}
+.c-meta-i span{color:var(--text);font-family:var(--mono);font-weight:600}
+.spark-wrap{margin-top:9px;height:42px}
+.spark-wrap canvas{width:100%!important;height:42px!important;display:block}
+.del-btn{position:absolute;top:10px;right:10px;background:rgba(255,77,109,.12);border:none;color:var(--red);width:30px;height:30px;border-radius:50%;font-size:15px;display:flex;align-items:center;justify-content:center;z-index:5}
+
+/* WATCHLIST CARD - draggable */
+.wl-card{cursor:grab;touch-action:pan-y;transition:transform .2s ease, opacity .2s ease, box-shadow .2s ease}
+.wl-card.dragging{opacity:.5;cursor:grabbing;box-shadow:0 10px 30px rgba(0,0,0,.5);transform:scale(1.02);z-index:10;position:relative}
+.wl-card.drag-over{border-color:var(--accent);border-width:2px}
+.drag-handle{position:absolute;top:50%;left:8px;transform:translateY(-50%);color:var(--muted);opacity:.5;font-size:18px;line-height:.6;letter-spacing:-2px;cursor:grab;padding:8px 4px;user-select:none;-webkit-user-select:none}
+.wl-card{padding-left:32px}
+.wl-card .del-btn{right:10px}
+.wl-edit-hint{font-size:11px;color:var(--muted);text-align:center;padding:8px 0 14px;font-style:italic}
+
+/* VIX */
+.vix-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:9px}
+.vix-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+.vix-lbl{font-size:11.5px;font-weight:700;color:var(--muted)}
+.vix-val{font-family:var(--mono);font-size:22px;font-weight:800}
+.vix-bg{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin:6px 0 3px}
+.vix-fill{height:100%;border-radius:3px;transition:width .8s ease}
+.vix-ticks{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
+
+/* FG */
+.fg-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:13px;margin-bottom:9px}
+.fg-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.fg-lbl{font-size:11.5px;font-weight:700;color:var(--muted)}
+.gauge-wrap{display:flex;justify-content:center}
+.fg-num{text-align:center;font-family:var(--mono);font-size:28px;font-weight:800;margin-top:4px}
+.fg-sent{text-align:center;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-top:3px}
+
+/* NO-KEY BANNER */
+.banner{background:linear-gradient(135deg,rgba(124,106,247,.15),rgba(167,139,250,.08));border:1px solid var(--accent);border-radius:var(--r);padding:18px;margin-bottom:14px;text-align:center}
+.banner-title{font-size:16px;font-weight:800;margin-bottom:6px}
+.banner-sub{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:12px}
+.banner-btn{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:700}
+
+/* ADD BAR */
+.add-bar{display:flex;gap:8px;margin-bottom:12px}
+.add-inp{flex:1;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rs);padding:12px 13px;color:var(--text);font-size:14px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;outline:none;-webkit-appearance:none}
+.add-inp:focus{border-color:var(--accent)}
+.add-inp::placeholder{text-transform:none;font-weight:400;color:var(--muted)}
+.add-btn{background:var(--accent);color:#fff;border:none;border-radius:var(--rs);padding:12px 18px;font-size:14px;font-weight:700;-webkit-appearance:none}
+
+/* SKELETON */
+.skel{background:linear-gradient(90deg,var(--surface) 25%,var(--surface2) 50%,var(--surface) 75%);background-size:200% 100%;animation:shim 1.3s infinite;border-radius:6px}
+@keyframes shim{to{background-position:-200% 0}}
+
+/* BOTTOM NAV */
+.bot-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(10,10,15,0.97);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;padding:8px 0 max(10px,env(safe-area-inset-bottom));z-index:100}
+.nav-b{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;color:var(--muted);font-size:10px;font-weight:600;padding:4px 0}
+.nav-b.on{color:var(--accent2)}
+.nav-b svg{width:22px;height:22px}
+
+/* PAGES */
+.page{display:none}.page.on{display:block}
+
+/* SETTINGS */
+.set-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);margin-bottom:9px;overflow:hidden}
+.set-row{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;border-bottom:1px solid var(--border)}
+.set-row:last-child{border-bottom:none}
+.set-lbl{font-size:14px;font-weight:500}
+.set-val{font-size:13px;color:var(--muted);font-family:var(--mono)}
+.api-inp{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--rs);padding:12px 13px;color:var(--text);font-size:13px;font-family:var(--mono);outline:none;margin-top:8px;-webkit-appearance:none}
+.api-inp:focus{border-color:var(--accent)}
+.save-btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:var(--rs);padding:13px;font-size:14px;font-weight:700;margin-top:8px;-webkit-appearance:none}
+.note{font-size:12px;color:var(--muted);line-height:1.55;margin-top:8px}
+.note a{color:var(--accent2);text-decoration:none}
+.key-status{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+.key-status.ok{background:var(--green-dim);color:var(--green)}
+.key-status.no{background:var(--red-dim);color:var(--red)}
+
+/* TOAST */
+.toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:11px 20px;border-radius:22px;font-size:13px;font-weight:600;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;white-space:nowrap;z-index:500;max-width:90%}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.last-upd{text-align:center;font-size:10px;color:var(--muted);padding:8px 0 4px;letter-spacing:.3px}
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty p{font-size:14px;line-height:1.6;margin-top:10px}
+.g{color:var(--green)}.r{color:var(--red)}.gold{color:var(--gold)}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo"><div class="logo-dot"></div>Market Pulse</div>
+  <div class="hdr-right">
+    <span class="mkt-badge closed" id="mktBadge">—</span>
+    <button class="ref-btn" id="refBtn" type="button">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<!-- TICKER -->
+<div class="ticker-wrap">
+  <div class="ticker-track" id="tickerTrack">
+    <span class="t-item"><span class="t-sym">se încarcă...</span></span>
+  </div>
+</div>
+
+<!-- PAGE: INDICI -->
+<div id="pageIndici" class="page on">
+  <div class="sec">
+    <div id="noKeyBanner" style="display:none">
+      <div class="banner">
+        <div class="banner-title">🔑 API Key necesar</div>
+        <div class="banner-sub">Aplicația folosește Finnhub pentru date în timp real.<br>Key gratuit, 60 req/min, pre-market inclus.</div>
+        <a href="https://finnhub.io/register" target="_blank" class="banner-btn">→ Creează cont Finnhub</a>
+        <div style="margin-top:10px;font-size:11px;color:var(--muted)">Apoi mergi la <strong style="color:var(--accent2)">Setări</strong> și pune key-ul</div>
+      </div>
+    </div>
+    <div class="sec-title">Indici Principali</div>
+    <div id="indiciList"></div>
+  </div>
+  <div class="sec">
+    <div class="sec-title">Sentimentul Pieței</div>
+    <div class="vix-card">
+      <div class="vix-hdr">
+        <span class="vix-lbl">VIX — Volatilitate</span>
+        <span class="vix-val" id="vixVal">—</span>
+      </div>
+      <div class="vix-bg"><div class="vix-fill" id="vixFill" style="width:0%;background:var(--muted)"></div></div>
+      <div class="vix-ticks"><span>0 Calm</span><span>20</span><span>40+ Panică</span></div>
+    </div>
+    <div class="fg-card">
+      <div class="fg-hdr">
+        <span class="fg-lbl">Fear &amp; Greed Index</span>
+        <span style="font-size:10px;color:var(--muted)">CNN Money</span>
+      </div>
+      <div class="gauge-wrap">
+        <canvas id="fgCanvas" width="140" height="75" style="width:140px;height:75px"></canvas>
+      </div>
+      <div class="fg-num" id="fgNum">—</div>
+      <div class="fg-sent" id="fgSent">—</div>
+    </div>
+  </div>
+  <div class="last-upd" id="lastUpd">Aștept API key...</div>
+</div>
+
+<!-- PAGE: WATCHLIST -->
+<div id="pageWatchlist" class="page">
+  <div class="sec">
+    <div class="add-bar">
+      <input class="add-inp" id="addInp" type="text" placeholder="Simbol (ex: AAPL)" maxlength="12"
+        autocorrect="off" autocapitalize="characters" spellcheck="false">
+      <button class="add-btn" id="addBtn" type="button">+ Add</button>
+    </div>
+    <div class="sec-title">Watchlist</div>
+    <div id="wlCards"></div>
+  </div>
+</div>
+
+<!-- PAGE: SETTINGS -->
+<div id="pageSettings" class="page">
+  <div class="sec">
+    <div class="sec-title">API Key</div>
+    <div class="set-card">
+      <div class="set-row">
+        <span class="set-lbl">Status key</span>
+        <span class="key-status no" id="keyStatus">LIPSEȘTE</span>
+      </div>
+      <div class="set-row">
+        <span class="set-lbl">Provider</span>
+        <span class="set-val">Finnhub.io</span>
+      </div>
+      <div class="set-row" style="flex-direction:column;align-items:stretch;gap:4px">
+        <span class="set-lbl" style="margin-bottom:4px">Key Finnhub</span>
+        <input class="api-inp" id="apiInp" type="text" placeholder="d12345abcd67890..."
+          autocorrect="off" autocapitalize="none" spellcheck="false">
+        <button class="save-btn" id="saveBtn" type="button">Salvează key</button>
+        <p class="note">
+          1. Cont gratuit pe <a href="https://finnhub.io/register" target="_blank">finnhub.io/register</a><br>
+          2. Dashboard → <strong style="color:var(--text)">API Key</strong> (sus, primul de pe pagină)<br>
+          3. Copiază și lipește aici → Salvează
+        </p>
+      </div>
+    </div>
+    <div class="sec-title">Instalare</div>
+    <div class="set-card">
+      <div class="set-row" style="flex-direction:column;align-items:flex-start;gap:8px">
+        <span class="set-lbl">Add to Home Screen</span>
+        <p class="note" style="margin:0">
+          <strong style="color:var(--text)">Important:</strong> Pentru ca aplicația să funcționeze, trebuie deschisă dintr-un URL online (nu Files).
+          <br><br>
+          1. Urcă fișierul pe <a href="https://app.netlify.com/drop" target="_blank">netlify.com/drop</a> (drag-and-drop, fără cont)<br>
+          2. Deschide URL-ul primit în <strong style="color:var(--text)">Safari</strong><br>
+          3. Share → „Add to Home Screen"
+        </p>
+      </div>
+    </div>
+    <div class="set-card">
+      <div class="set-row">
+        <span class="set-lbl">Reset watchlist</span>
+        <button id="resetBtn" type="button" style="background:var(--red-dim);color:var(--red);border:none;border-radius:7px;padding:8px 14px;font-size:13px;font-weight:700">Reset</button>
+      </div>
+    </div>
+    <div class="sec-title">Debug</div>
+    <div id="debugLog" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;font-size:11px;font-family:var(--mono);color:var(--muted);line-height:1.6;max-height:200px;overflow-y:auto;word-break:break-all"></div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bot-nav">
+  <button class="nav-b on" id="navIndici" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Indici
+  </button>
+  <button class="nav-b" id="navWatchlist" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>Watchlist
+  </button>
+  <button class="nav-b" id="navSettings" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Setări
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let API_KEY = '';
+let watchlist = ['AAPL','NVDA','TSLA','MSFT'];
+let priceCache = {};
+let sparkCache = {};
+let fgData = { value: null, sentiment: '' };
+let timer = null;
+
+// Finnhub uses ETFs as proxies for indices (real index symbols require paid plan)
+const INDICES = [
+  { fh:'SPY', name:'S&P 500 (SPY)',     label:'S&P 500'   },
+  { fh:'QQQ', name:'Nasdaq 100 (QQQ)',  label:'Nasdaq'    },
+];
+
+function dbg(m){try{const el=document.getElementById('debugLog');const ts=new Date().toLocaleTimeString('ro-RO');if(el)el.innerHTML='<div>['+ts+'] '+m+'</div>'+el.innerHTML;console.log('[DBG]',m);}catch(e){}}
+window.addEventListener('error',e=>dbg('ERR: '+e.message));
+
+function store(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+function load(k,d){try{return localStorage.getItem(k)??d}catch(e){return d}}
+
+document.addEventListener('DOMContentLoaded', init);
+if (document.readyState !== 'loading') init();
+
+let booted = false;
+function init() {
+  if (booted) return;
+  booted = true;
+  dbg('init started');
+
+  bind('refBtn', manualRefresh);
+  bind('addBtn', addTicker);
+  bind('saveBtn', saveKey);
+  bind('resetBtn', resetWL);
+  bind('navIndici',    () => goPage('Indici'));
+  bind('navWatchlist', () => goPage('Watchlist'));
+  bind('navSettings',  () => goPage('Settings'));
+
+  const ai = document.getElementById('addInp');
+  if (ai) ai.addEventListener('keydown', e => { if(e.key==='Enter') addTicker(); });
+  const ki = document.getElementById('apiInp');
+  if (ki) ki.addEventListener('keydown', e => { if(e.key==='Enter') saveKey(); });
+
+  const wl = load('watchlist','');
+  if (wl) { try { watchlist = JSON.parse(wl); } catch(e){} }
+
+  API_KEY = load('fh_key','') || '';
+  if (API_KEY) {
+    document.getElementById('apiInp').value = API_KEY;
+    updateKeyStatus(true);
+    document.getElementById('noKeyBanner').style.display = 'none';
+    dbg('key found, starting fetch');
+    boot();
+  } else {
+    updateKeyStatus(false);
+    document.getElementById('noKeyBanner').style.display = 'block';
+    document.getElementById('lastUpd').textContent = 'Aștept API key în Setări...';
+    renderSkeletons();
+    dbg('no key — banner shown');
+  }
+
+  updateMktStatus();
+  setInterval(updateMktStatus, 60000);
+}
+
+function bind(id, fn) {
+  const el = document.getElementById(id);
+  if (!el) { dbg('bind miss: '+id); return; }
+  el.addEventListener('click', e => { e.preventDefault(); fn(); });
+}
+
+function updateKeyStatus(ok) {
+  const s = document.getElementById('keyStatus');
+  if (!s) return;
+  s.textContent = ok ? 'ACTIV' : 'LIPSEȘTE';
+  s.className = 'key-status ' + (ok ? 'ok' : 'no');
+}
+
+function boot() {
+  renderSkeletons();
+  fetchAll();
+  if (timer) clearInterval(timer);
+  timer = setInterval(fetchAll, 30000);
+}
+
+function goPage(p) {
+  ['Indici','Watchlist','Settings'].forEach(x => {
+    document.getElementById('page'+x).classList.toggle('on', x===p);
+    document.getElementById('nav'+x).classList.toggle('on', x===p);
+  });
+}
+
+function updateMktStatus() {
+  try {
+    const et = new Date(new Date().toLocaleString('en-US',{timeZone:'America/New_York'}));
+    const d=et.getDay(), mins=et.getHours()*60+et.getMinutes();
+    const b = document.getElementById('mktBadge');
+    if(d===0||d===6){b.textContent='Weekend';b.className='mkt-badge closed';return}
+    if(mins>=570&&mins<930)       {b.textContent='Live';      b.className='mkt-badge open'}
+    else if(mins>=240&&mins<570)  {b.textContent='Pre-Mkt';   b.className='mkt-badge pre'}
+    else if(mins>=930&&mins<1200) {b.textContent='After-Hrs'; b.className='mkt-badge pre'}
+    else                          {b.textContent='Închis';    b.className='mkt-badge closed'}
+  } catch(e){}
+}
+
+async function fetchAll() {
+  if (!API_KEY) return;
+  document.getElementById('refBtn').classList.add('spin');
+  dbg('fetchAll start');
+
+  const allSym = [...INDICES.map(i=>i.fh), ...watchlist, 'BINANCE:BTCUSDT'];
+  // VIX needs special: try index format
+  const quoteSym = [...INDICES.map(i=>i.fh), ...watchlist];
+
+  const results = await Promise.allSettled(quoteSym.map(s => fetchQuote(s)));
+  let failed = 0;
+  results.forEach((r,i)=>{
+    if(r.status==='rejected') { failed++; dbg('fail '+quoteSym[i]+': '+(r.reason?.message||r.reason)); }
+  });
+  if (failed === quoteSym.length) {
+    showToast('❌ Toate fetch-urile au eșuat — verifică API key');
+  } else {
+    dbg('quotes ok: '+(quoteSym.length-failed)+'/'+quoteSym.length);
+  }
+
+  // VIX
+  try { await fetchVIX(); } catch(e) { dbg('vix err: '+e.message); }
+  // Fear & Greed
+  await fetchFearGreed();
+  // Sparklines
+  for (const s of [...INDICES.map(i=>i.fh), ...watchlist]) {
+    if (!sparkCache[s]) {
+      try { await fetchSpark(s); } catch(e){}
+      await delay(150);
+    }
+  }
+
+  renderIndici(); renderWatchlist(); renderTicker(); renderVIX(); renderFearGreed();
+  document.getElementById('lastUpd').textContent =
+    'Actualizat: ' + new Date().toLocaleTimeString('ro-RO',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  document.getElementById('refBtn').classList.remove('spin');
+  dbg('fetchAll done');
+}
+
+const delay = ms => new Promise(r=>setTimeout(r,ms));
+
+async function fetchQuote(symbol) {
+  const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${API_KEY}`;
+  const r = await fetch(url);
+  if (!r.ok) {
+    if(r.status===401) showToast('❌ API key invalid');
+    if(r.status===403) showToast('❌ API key fără acces');
+    if(r.status===429) showToast('⚠️ Prea multe cereri');
+    throw new Error('HTTP '+r.status);
+  }
+  const d = await r.json();
+  if (!d.c || d.c === 0) throw new Error('No data for '+symbol);
+  const prev = priceCache[symbol];
+  priceCache[symbol] = {
+    c:d.c, dp:d.dp, d:d.d, v:null,
+    h:d.h, l:d.l,
+    prevC: prev ? prev.c : null,
+  };
+}
+
+async function fetchVIX() {
+  // Try with no token first (some indices need workaround); fallback to VIXY ETF
+  try {
+    const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=VIXY&token=${API_KEY}`);
+    if (!r.ok) throw new Error('VIXY http '+r.status);
+    const d = await r.json();
+    if (d.c) priceCache['VIX'] = { c:d.c, dp:d.dp, d:d.d };
+  } catch(e) { dbg('vix fallback failed: '+e.message); }
+}
+
+async function fetchFearGreed() {
+  try {
+    const r = await fetch('https://production.dataviz.cnn.io/index/fearandgreed/graphdata');
+    if(!r.ok) throw new Error('CNN '+r.status);
+    const d = await r.json();
+    const score = Math.round(d.fear_and_greed?.score ?? d.fear_and_greed?.current_value ?? 50);
+    fgData = { value: score, sentiment: classify(score) };
+    dbg('F&G: '+score);
+  } catch(e) {
+    dbg('F&G err: '+e.message);
+    // Fallback estimate from VIX
+    const vq = priceCache['VIX'];
+    if (vq && vq.c > 0) {
+      const v = Math.max(0,Math.min(100,Math.round(100-(vq.c/40)*100)));
+      fgData = { value:v, sentiment:classify(v)+' (est.)' };
+    }
+  }
+}
+
+async function fetchSpark(symbol) {
+  // Finnhub free tier doesn't allow candle API anymore — skip silently
+  // We'll build sparklines from successive fetches over time instead
+  return;
+}
+
+function classify(v){
+  if(v<=25) return 'Frică Extremă';
+  if(v<=45) return 'Frică';
+  if(v<=55) return 'Neutru';
+  if(v<=75) return 'Lăcomie';
+  return 'Lăcomie Extremă';
+}
+
+function renderSkeletons() {
+  const el = document.getElementById('indiciList');
+  if (!el) return;
+  el.innerHTML = INDICES.map(()=>`
+    <div class="card">
+      <div class="skel" style="width:55%;height:14px;margin-bottom:8px"></div>
+      <div class="skel" style="width:38%;height:22px"></div>
+    </div>`).join('');
+}
+
+function buildCard(symbol, fallbackName, deletable=false) {
+  const q = priceCache[symbol];
+  const cardCls = deletable ? 'card wl-card' : 'card';
+  const handle = deletable ? `<div class="drag-handle" aria-hidden="true">⋮⋮</div>` : '';
+  if (!q || q.c == null) {
+    return `<div class="${cardCls}" id="card-${symbol}" data-sym="${symbol}" ${deletable?'draggable="true"':''}>
+      ${handle}
+      ${deletable?`<button class="del-btn" data-sym="${symbol}" type="button">✕</button>`:''}
+      <div class="card-top">
+        <div><div class="c-sym">${symbol}</div><div class="c-name">${fallbackName||symbol}</div></div>
+        <div><div class="c-price" style="color:var(--muted)">—</div><div class="c-chg" style="color:var(--muted)">se încarcă...</div></div>
+      </div>
+    </div>`;
+  }
+  const pos = q.dp >= 0, cls = pos?'g':'r', arr = pos?'▲':'▼';
+  const pct = q.dp!=null ? (pos?'+':'')+q.dp.toFixed(2)+'%' : '—';
+  const chg = q.d!=null  ? (pos?'+':'')+q.d.toFixed(2) : '—';
+  const flash = (q.prevC!=null && q.prevC!==q.c) ? (q.c>q.prevC?'fg':'fr') : '';
+  return `
+  <div class="${cardCls} ${flash}" id="card-${symbol}" data-sym="${symbol}" ${deletable?'draggable="true"':''}>
+    ${handle}
+    ${deletable?`<button class="del-btn" data-sym="${symbol}" type="button">✕</button>`:''}
+    <div class="card-top">
+      <div><div class="c-sym">${symbol}</div><div class="c-name">${fallbackName||symbol}</div></div>
+      <div>
+        <div class="c-price ${cls}">$${q.c.toFixed(2)}</div>
+        <div class="c-chg ${cls}">${arr} ${chg} <span style="opacity:.7">(${pct})</span></div>
+      </div>
+    </div>
+    <div class="c-meta">
+      <div class="c-meta-i">H <span>${q.h?q.h.toFixed(2):'—'}</span></div>
+      <div class="c-meta-i">L <span>${q.l?q.l.toFixed(2):'—'}</span></div>
+      <div class="c-meta-i">Var <span class="${cls}">${chg}</span></div>
+    </div>
+  </div>`;
+}
+
+function wireDeleteBtns(container) {
+  container.querySelectorAll('.del-btn').forEach(btn => {
+    btn.addEventListener('click', e => { e.preventDefault(); removeTicker(btn.dataset.sym); });
+  });
+}
+
+function renderIndici() {
+  const el = document.getElementById('indiciList');
+  if (!el) return;
+  el.innerHTML = INDICES.map(i=>buildCard(i.fh, i.name)).join('');
+}
+
+function renderWatchlist() {
+  const el = document.getElementById('wlCards');
+  if (!el) return;
+  if (!watchlist.length) {
+    el.innerHTML = `<div class="empty"><p>Watchlist gol.<br>Adaugă simboluri mai sus<br>(ex: AAPL, NVDA, PLTR)</p></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="wl-edit-hint">Apasă lung și trage pentru a reordona · ✕ pentru a șterge</div>` +
+                 watchlist.map(s=>buildCard(s,'',true)).join('');
+  wireDeleteBtns(el);
+  wireDragDrop(el);
+}
+
+// ── DRAG & DROP (touch + mouse) ─────────────────────────
+function wireDragDrop(container) {
+  const cards = container.querySelectorAll('.wl-card');
+
+  // Desktop drag
+  cards.forEach(card => {
+    card.addEventListener('dragstart', e => {
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', card.dataset.sym);
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      container.querySelectorAll('.drag-over').forEach(c => c.classList.remove('drag-over'));
+    });
+    card.addEventListener('dragover', e => {
+      e.preventDefault();
+      const dragging = container.querySelector('.dragging');
+      if (!dragging || dragging === card) return;
+      card.classList.add('drag-over');
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      card.classList.remove('drag-over');
+      const fromSym = e.dataTransfer.getData('text/plain');
+      const toSym = card.dataset.sym;
+      reorderWL(fromSym, toSym);
+    });
+  });
+
+  // Touch drag for iOS — long-press to start
+  cards.forEach(card => {
+    let pressTimer = null;
+    let dragging = false;
+    let startY = 0;
+    let placeholder = null;
+
+    card.addEventListener('touchstart', e => {
+      if (e.target.closest('.del-btn')) return; // don't drag from delete button
+      const touch = e.touches[0];
+      startY = touch.clientY;
+      pressTimer = setTimeout(() => {
+        dragging = true;
+        card.classList.add('dragging');
+        if (navigator.vibrate) navigator.vibrate(50);
+      }, 400); // 400ms long press
+    }, { passive: true });
+
+    card.addEventListener('touchmove', e => {
+      if (!dragging) {
+        // cancel long-press if user scrolled
+        const touch = e.touches[0];
+        if (Math.abs(touch.clientY - startY) > 10) clearTimeout(pressTimer);
+        return;
+      }
+      e.preventDefault();
+      const touch = e.touches[0];
+      // find element under finger
+      const elBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+      const targetCard = elBelow?.closest('.wl-card');
+      container.querySelectorAll('.drag-over').forEach(c => {
+        if (c !== targetCard) c.classList.remove('drag-over');
+      });
+      if (targetCard && targetCard !== card) {
+        targetCard.classList.add('drag-over');
+      }
+    }, { passive: false });
+
+    card.addEventListener('touchend', e => {
+      clearTimeout(pressTimer);
+      if (!dragging) return;
+      dragging = false;
+      card.classList.remove('dragging');
+      const touch = e.changedTouches[0];
+      const elBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+      const targetCard = elBelow?.closest('.wl-card');
+      container.querySelectorAll('.drag-over').forEach(c => c.classList.remove('drag-over'));
+      if (targetCard && targetCard !== card) {
+        reorderWL(card.dataset.sym, targetCard.dataset.sym);
+      }
+    });
+
+    card.addEventListener('touchcancel', () => {
+      clearTimeout(pressTimer);
+      dragging = false;
+      card.classList.remove('dragging');
+    });
+  });
+}
+
+function reorderWL(fromSym, toSym) {
+  const fromIdx = watchlist.indexOf(fromSym);
+  const toIdx = watchlist.indexOf(toSym);
+  if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
+  const [moved] = watchlist.splice(fromIdx, 1);
+  watchlist.splice(toIdx, 0, moved);
+  saveWL();
+  renderWatchlist();
+  renderTicker();
+  showToast('✅ Reordonat');
+}
+
+function renderTicker() {
+  const items = [...INDICES.map(i=>({s:i.fh,lbl:i.label})), ...watchlist.map(s=>({s,lbl:s}))];
+  const html = items.map(({s,lbl}) => {
+    const q = priceCache[s]; if (!q||!q.c) return '';
+    const cls = q.dp>=0?'g':'r';
+    return `<span class="t-item"><span class="t-sym">${lbl}</span><span class="t-prc">$${q.c.toFixed(2)}</span><span class="t-chg ${cls}">${q.dp>=0?'+':''}${q.dp?.toFixed(2)??'—'}%</span></span>`;
+  }).filter(Boolean).join('');
+  if (html) document.getElementById('tickerTrack').innerHTML = html+html;
+}
+
+function renderVIX() {
+  const q = priceCache['VIX']; if (!q || !q.c) return;
+  const v = q.c;
+  const el = document.getElementById('vixVal');
+  el.textContent = v.toFixed(2);
+  el.className = 'vix-val ' + (v>30?'r':v>20?'gold':'g');
+  const fill = document.getElementById('vixFill');
+  fill.style.width = Math.min(100,(v/40)*100)+'%';
+  fill.style.background = v>30?'var(--red)':v>20?'var(--gold)':'var(--green)';
+}
+
+function renderFearGreed() {
+  if (fgData.value === null) return;
+  document.getElementById('fgNum').textContent = fgData.value;
+  const se = document.getElementById('fgSent');
+  se.textContent = fgData.sentiment;
+  const v = fgData.value;
+  se.style.color = v<=25?'var(--red)':v<=45?'#ff8c42':v<=55?'var(--muted)':v<=75?'#a0d468':'var(--green)';
+  drawGauge(v);
+}
+
+function drawGauge(value) {
+  const canvas = document.getElementById('fgCanvas'); if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = 140*dpr; canvas.height = 75*dpr;
+  const ctx = canvas.getContext('2d'); ctx.scale(dpr,dpr);
+  const cx=70, cy=65, r=52;
+  ctx.beginPath(); ctx.arc(cx,cy,r,Math.PI,0);
+  ctx.strokeStyle='#2e2e48'; ctx.lineWidth=10; ctx.lineCap='round'; ctx.stroke();
+  const stops = [[0,'#ff4d6d'],[.25,'#ff8c42'],[.5,'#f0b429'],[.75,'#a0d468'],[1,'#00d4aa']];
+  for (let i=0;i<60;i++) {
+    ctx.beginPath();
+    ctx.arc(cx,cy,r,Math.PI+(i/60)*Math.PI,Math.PI+((i+1)/60)*Math.PI);
+    ctx.strokeStyle = lerpC(stops, i/59);
+    ctx.lineWidth = 10; ctx.lineCap = 'butt'; ctx.stroke();
+  }
+  const ang = Math.PI + (value/100)*Math.PI;
+  ctx.beginPath(); ctx.moveTo(cx,cy);
+  ctx.lineTo(cx+(r-6)*Math.cos(ang), cy+(r-6)*Math.sin(ang));
+  ctx.strokeStyle='#fff'; ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx,cy,4,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
+}
+
+function lerpC(stops,t){
+  let i=0; while(i<stops.length-2 && stops[i+1][0]<=t) i++;
+  const [t0,c0]=stops[i], [t1,c1]=stops[i+1];
+  const f = (t-t0)/(t1-t0) || 0;
+  const h = c => [parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)];
+  const [r0,g0,b0]=h(c0), [r1,g1,b1]=h(c1);
+  return `rgb(${~~(r0+(r1-r0)*f)},${~~(g0+(g1-g0)*f)},${~~(b0+(b1-b0)*f)})`;
+}
+
+async function addTicker() {
+  if (!API_KEY) { showToast('⚠️ Pune API key în Setări întâi'); return; }
+  const inp = document.getElementById('addInp');
+  const sym = inp.value.trim().toUpperCase().replace(/[^A-Z0-9.\-]/g,'');
+  if (!sym) return;
+  if (watchlist.includes(sym)) { showToast('⚠️ Deja în watchlist'); inp.value=''; return; }
+  inp.value = '';
+  showToast('⏳ Se adaugă '+sym+'...');
+  try {
+    await fetchQuote(sym);
+    watchlist.push(sym); saveWL();
+    renderWatchlist(); renderTicker();
+    showToast('✅ Adăugat '+sym);
+  } catch(e) {
+    showToast('❌ Simbol invalid: '+sym);
+  }
+}
+
+function removeTicker(sym){
+  watchlist = watchlist.filter(s=>s!==sym);
+  saveWL(); renderWatchlist(); renderTicker();
+}
+
+function saveWL(){ store('watchlist', JSON.stringify(watchlist)); }
+
+function resetWL(){
+  if (!confirm('Resetezi watchlist-ul?')) return;
+  watchlist = ['AAPL','NVDA','TSLA','MSFT'];
+  saveWL(); renderWatchlist();
+}
+
+function saveKey(){
+  const k = document.getElementById('apiInp').value.trim();
+  if (!k || k.length < 8) { showToast('⚠️ Key prea scurt'); return; }
+  API_KEY = k;
+  store('fh_key', k);
+  updateKeyStatus(true);
+  document.getElementById('noKeyBanner').style.display = 'none';
+  showToast('✅ Key salvat — se încarcă datele');
+  dbg('key saved, length: '+k.length);
+  goPage('Indici');
+  boot();
+}
+
+function manualRefresh(){
+  if (!API_KEY) { showToast('⚠️ Pune API key în Setări'); goPage('Settings'); return; }
+  clearInterval(timer); fetchAll(); timer = setInterval(fetchAll, 30000);
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('on');
+  setTimeout(()=>t.classList.remove('on'), 2800);
+}
+
+dbg('script loaded');
+</script>
+</body>
+</html>
